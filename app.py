@@ -1,20 +1,34 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+
+# Nisab thresholds
+gold_nisab = 87.48  # grams of gold
+silver_nisab = 612.36  # grams of silver
+gold_price_per_gram = 60  # Example, replace with live data
+silver_price_per_gram = 0.75  # Example, replace with live data
 
 @app.route('/calculate-zakat', methods=['POST'])
 def calculate_zakat():
-    data = request.get_json()
-    wealth = data.get('wealth', 0)
-    nisab = 612.36 * 0.8  # Silver price as an example
-    zakat = 0
+    data = request.json
+    wealth = data.get('wealth', 0)  # Wealth input from user
+    asset_type = data.get('asset_type', 'gold')  # gold or silver
+    
+    # Calculate the Nisab in currency value
+    if asset_type == 'gold':
+        nisab_value = gold_nisab * gold_price_per_gram
+    elif asset_type == 'silver':
+        nisab_value = silver_nisab * silver_price_per_gram
+    else:
+        return jsonify({"error": "Invalid asset type. Use 'gold' or 'silver'."}), 400
 
-    if wealth >= nisab:
-        zakat = wealth * 0.025
+    # Check if wealth exceeds Nisab
+    if wealth < nisab_value:
+        return jsonify({"eligible_for_zakat": False, "message": "Wealth is below Nisab threshold."}), 200
 
-    return jsonify({ 'zakat': round(zakat, 2) })
+    # Calculate Zakat
+    zakat = wealth * 0.025  # 2.5% of the wealth
+    return jsonify({"eligible_for_zakat": True, "zakat_amount": zakat, "nisab_value": nisab_value}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(debug=True)
